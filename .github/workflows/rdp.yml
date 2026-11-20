@@ -1,0 +1,35 @@
+name: RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Enable RDP and set password
+        shell: pwsh
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "${{ secrets.RDP_PASSWORD }}" -Force)
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          hostname: github-rdp
+
+      - name: Show Tailscale IP
+        shell: pwsh
+        run: |
+          tailscale ip -4
+          tailscale status
+
+      - name: Keep session alive
+        shell: pwsh
+        run: |
+          Write-Host "RDP ready. User: runneradmin"
+          Start-Sleep -Seconds 21000
